@@ -1,0 +1,7 @@
+name: Publish Document
+account: rpubs
+server: rpubs.com
+bundleId:
+        https://api.rpubs.com/api/v1/document/148793/cae146afc49b40229044e374fb46453d
+url: http://rpubs.com/tentativafc/148793
+when: 1454246123.12577

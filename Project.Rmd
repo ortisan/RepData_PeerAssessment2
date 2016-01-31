@@ -1,0 +1,139 @@
+---
+title: "Study of wheather events in public health and economics"
+author: "Marcelo Ortiz de Santana"
+date: "January 17, 2016"
+output: html_document
+---
+
+```{r}
+library("ggplot2")
+library("scales")
+library("Rmisc")
+```
+
+## Synopsis
+
+This study aims understand the impact of weather events on the public health and economics.
+
+The data used are available from National Oceanic and Atmospheric Administration (NOAA).
+
+The data has the type of the weather event, the state and county which the event occurred, the number of injuries and fatalities and the value in dollars of property and crop damages. 
+
+In this study, we explore only the number of injuries, fatalities, damage of properties and crops and the type of weather event.
+
+## Environment Info
+
+For this study we describe on below, the environment used. 
+
+```{r}
+sessionInfo()
+```
+
+## Data Processing
+
+```{r echo=FALSE}
+setwd("/home/marcelo/Ambiente/workspace-r/RepData_PeerAssessment2/")
+```
+
+```{r cache=TRUE}
+data <- read.csv("data/repdata-data-StormData.csv.bz2")
+```
+
+The data file used has aproximally `r file.info("data/repdata-data-StormData.csv.bz2")$size / 1024 ^ 2`Mb. The data contains `r dim(data)[1]` rows and `r dim(data)[2]` columns.
+
+The values of damages in properties and crop are scalled by abbreviations ("K" for thousands, "M" for millions, and "B" for billions). The follow steps transform the values to same scale:
+
+```{r cache=TRUE}
+data$PROPDMG_MODIF <- 0
+data[data$PROPDMGEXP == "K",]$PROPDMG_MODIF <- data[data$PROPDMGEXP == "K", c("PROPDMG")] * 1e3 
+data[data$PROPDMGEXP == "M",]$PROPDMG_MODIF <- data[data$PROPDMGEXP == "M", c("PROPDMG")] * 1e6
+data[data$PROPDMGEXP == "B",]$PROPDMG_MODIF <- data[data$PROPDMGEXP == "B", c("PROPDMG")] * 1e9
+
+data$CROPDMG_MODIF <- 0
+data[data$CROPDMGEXP == "K",]$CROPDMG_MODIF <- data[data$CROPDMGEXP == "K", c("CROPDMG")] * 1e3 
+data[data$CROPDMGEXP == "M",]$CROPDMG_MODIF <- data[data$CROPDMGEXP == "M", c("CROPDMG")] * 1e6
+data[data$CROPDMGEXP == "B",]$CROPDMG_MODIF <- data[data$CROPDMGEXP == "B", c("CROPDMG")] * 1e9
+```
+
+## Results
+
+
+### Public health impacts
+
+Here we indicate the events most harmful for public health grouped by event type. We consider the fatalities and injuries in that study.
+
+```{r}
+data_most_harm_health_evt <- aggregate(FATALITIES + INJURIES ~ EVTYPE, data=data, FUN=sum)
+colnames(data_most_harm_health_evt) <- c("EVTYPE", "HEALTH_DAMAGE")
+data_most_harm_health_evt <- data_most_harm_health_evt[data_most_harm_health_evt$HEALTH_DAMAGE > 0, ]
+data_most_harm_health_evt_sort <- data_most_harm_health_evt[order(-data_most_harm_health_evt$HEALTH_DAMAGE),]
+data_most_harm_health_evt_sort <- data_most_harm_health_evt_sort[0:30,]
+
+head(data_most_harm_health_evt_sort, n=30)
+
+breaks <- pretty(data_most_harm_health_evt_sort$HEALTH_DAMAGE, n = 25)
+p1 <- ggplot(data=data_most_harm_health_evt_sort, aes(x=reorder(EVTYPE,HEALTH_DAMAGE), y=HEALTH_DAMAGE)) + scale_y_discrete(breaks=breaks) +
+  geom_bar(stat="identity") + theme(axis.text.x = element_text(angle = 90)) + coord_flip() + labs(title = "Bar plot of most harmful events for public health", x="Event", y="Number of occurrences")
+```
+
+Grouping the data by state, the following states are most affected.
+
+```{r}
+data_most_harm_health_st <- aggregate(FATALITIES + INJURIES ~ STATE, data=data, FUN=sum)
+colnames(data_most_harm_health_st) <- c("STATE", "HEALTH_DAMAGE")
+data_most_harm_health_st <- data_most_harm_health_st[data_most_harm_health_st$HEALTH_DAMAGE > 0, ]
+data_most_harm_health_st_sort <- data_most_harm_health_st[order(-data_most_harm_health_st$HEALTH_DAMAGE),]
+data_most_harm_health_st_sort <- data_most_harm_health_st_sort[0:30,]
+
+head(data_most_harm_health_st_sort, n=30)
+
+breaks <- pretty(data_most_harm_health_st_sort$HEALTH_DAMAGE, n = 25)
+p2 <- ggplot(data=data_most_harm_health_st_sort, aes(x=reorder(STATE,HEALTH_DAMAGE), y=HEALTH_DAMAGE)) + scale_y_discrete(breaks=breaks) +
+  geom_bar(stat="identity") + theme(axis.text.x = element_text(angle = 90)) + coord_flip() + labs(title = "Bar plot of most harmful events for public health by state", x="State", y="Number of occurrences")
+```
+
+```{r fig.width = 10, fig.height = 15}
+multiplot(p1, p2, cols = 1)
+```
+
+### Economics impact
+
+We do the same study for economics. The following plot show the damages in dollars of property and crop, grouped by events. 
+```{r}
+most_damage_econ_evt <- aggregate(PROPDMG_MODIF + CROPDMG_MODIF ~ EVTYPE, data=data, FUN=sum)
+colnames(most_damage_econ_evt) <- c("EVTYPE", "ECON_DAMAGE")
+most_damage_econ_evt <- most_damage_econ_evt[most_damage_econ_evt$ECON_DAMAGE > 0, ]
+most_damage_econ_evt_sort <- most_damage_econ_evt[order(-most_damage_econ_evt$ECON_DAMAGE),]
+most_damage_econ_evt_sort <- most_damage_econ_evt_sort[0:30,]
+
+head(most_damage_econ_evt_sort, n=30)
+
+p3 <- ggplot(data=most_damage_econ_evt_sort, aes(x=reorder(EVTYPE,ECON_DAMAGE), y=ECON_DAMAGE)) +
+geom_bar(stat="identity") +
+scale_y_continuous(labels = comma, breaks = round(seq(0, max(most_damage_econ_evt_sort$ECON_DAMAGE), by = 10000000000),1)) +
+theme(axis.text.x = element_text(angle = 90)) + 
+coord_flip()  +
+labs(title = "Bar plot of most damage events for economics", x="Event", y="Damage in dollars")
+```
+
+Grouping the the values of damages by state, we see the value that states loses with weather events.
+
+```{r}
+most_damage_econ_st <- aggregate(PROPDMG_MODIF + CROPDMG_MODIF ~ STATE, data=data, FUN=sum)
+colnames(most_damage_econ_st) <- c("STATE", "ECON_DAMAGE")
+most_damage_econ_st <- most_damage_econ_st[most_damage_econ_st$ECON_DAMAGE > 0, ]
+most_damage_econ_st_sort <- most_damage_econ_st[order(-most_damage_econ_st$ECON_DAMAGE),]
+most_damage_econ_st_sort <- most_damage_econ_st_sort[0:30,]
+head(most_damage_econ_st_sort, n=30)
+p4 <- ggplot(data=most_damage_econ_st_sort, aes(x=reorder(STATE, ECON_DAMAGE), y=ECON_DAMAGE)) +
+geom_bar(stat="identity") +
+scale_y_continuous(labels = comma, breaks = round(seq(0, max(most_damage_econ_st_sort$ECON_DAMAGE), by = 10000000000),1)) +
+theme(axis.text.x = element_text(angle = 90)) + 
+coord_flip()  +
+labs(title = "Bar plot of damages of weather events by state", x="State", y="Damage in dollars")
+```
+
+```{r fig.width = 10, fig.height = 15}
+multiplot(p3, p4, cols = 1)
+```
+
